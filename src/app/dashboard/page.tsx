@@ -69,7 +69,7 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-header">
               <div className="card-title">Recent Simulations</div>
-              <button className="btn btn-ghost btn-sm" onClick={() => router.push("/history")}>View all →</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => router.push("/simulations")}>View all →</button>
             </div>
             {sims.length === 0 ? (
               <Empty icon="▶" title="No simulations yet" sub="Create a new simulation to get started" />

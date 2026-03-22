@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -23,11 +22,20 @@ export default function SimulationDetail() {
 
   const loadData = async () => {
     try {
-      const res = await api.simulation.get(id);
-      setSim(res.data);
-      if (res.data?.status === "ready" || res.data?.status === "completed" || res.data?.runner_status === "running") {
+      const [simRes, runRes] = await Promise.all([
+        api.simulation.get(id),
+        api.simulation.runStatus(id),
+      ]);
+
+      const simData = simRes.data;
+      setSim(simData);
+      setRunStatus(runRes.data);
+
+      if (simData?.profiles_count > 0 && ["ready", "running", "completed", "stopped", "paused"].includes(simData?.status)) {
         const profRes = await api.simulation.profiles(id, "reddit"); // Defaulting to reddit for display
         setProfiles(profRes.data.profiles ?? []);
+      } else {
+        setProfiles([]);
       }
     } catch (e) {
       console.error(e);
@@ -37,19 +45,22 @@ export default function SimulationDetail() {
   };
 
   useEffect(() => {
+    setLoading(true);
     loadData();
-    // Poll status if running
-    const interval = setInterval(async () => {
-      if (sim?.runner_status === "running" || sim?.status === "preparing") {
-        try {
-          const runRes = await api.simulation.runStatus(id);
-          setRunStatus(runRes.data);
-          loadData(); // Re-fetch sim status to see if completed
-        } catch (e) {}
-      }
+  }, [id]);
+
+  const runnerStatus = runStatus?.runner_status ?? "idle";
+  const isPreparing = sim?.status === "preparing" || preparing;
+  const isRunning = runnerStatus === "starting" || runnerStatus === "running";
+  const shouldPoll = isPreparing || isRunning || sim?.status === "running";
+
+  useEffect(() => {
+    if (!shouldPoll) return;
+    const interval = setInterval(() => {
+      loadData();
     }, 3000);
     return () => clearInterval(interval);
-  }, [id, sim?.runner_status, sim?.status]);
+  }, [id, shouldPoll]);
 
   const handlePrepare = async () => {
     setPreparing(true);
@@ -107,9 +118,9 @@ export default function SimulationDetail() {
     return <div className="page items-center"><Toast type="error" msg="Simulation not found" /></div>;
   }
 
-  const isPreparing = sim.status === "preparing" || preparing;
-  const isRunning = sim.runner_status === "running";
-  const progress = runStatus ? Math.round((runStatus.current_round / (runStatus.total_rounds || 1)) * 100) : 0;
+  const statusLabel = runnerStatus !== "idle" ? runnerStatus : sim.status;
+  const progress = Math.round(Number(runStatus?.progress_percent ?? 0));
+  const enabledPlatforms = [sim.enable_twitter ? "twitter" : null, sim.enable_reddit ? "reddit" : null].filter(Boolean);
 
   return (
     <div className="page">
@@ -117,7 +128,7 @@ export default function SimulationDetail() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="page-title">Simulation <span className="mono text-zinc-500 text-2xl">{id.slice(0, 8)}</span></h1>
-            <StatusBadge status={sim.runner_status ?? sim.status} />
+            <StatusBadge status={statusLabel} />
           </div>
           <div className="page-sub mt-1">Project ID: <span className="mono">{sim.project_id}</span></div>
         </div>
@@ -128,7 +139,7 @@ export default function SimulationDetail() {
             </button>
           )}
           
-          {(sim.status === "ready" || sim.status === "completed" || sim.status === "stopped") && !isRunning && (
+          {(sim.status === "ready" || sim.status === "completed" || sim.status === "stopped" || sim.status === "paused" || sim.status === "failed") && !isRunning && (
             <button className="btn btn-primary" onClick={handleStart} disabled={starting}>
               {starting ? <><Spinner /> Starting...</> : "▶ Start Simulation"}
             </button>
@@ -149,10 +160,10 @@ export default function SimulationDetail() {
       </div>
 
       <div className="stat-grid">
-        <StatCard value={profiles.length || "—"} label="Agents" />
-        <StatCard value={sim.total_rounds ?? "—"} label="Total Rounds" />
-        <StatCard value={sim.environment?.platforms ? Object.keys(sim.environment.platforms).length : 0} label="Platforms" />
-        <StatCard value={runStatus?.current_round || sim.current_round || 0} label="Current Round" color="var(--blue)" />
+        <StatCard value={sim.profiles_count || profiles.length || "—"} label="Agents" />
+        <StatCard value={runStatus?.total_rounds || "—"} label="Total Rounds" />
+        <StatCard value={enabledPlatforms.length} label="Platforms" />
+        <StatCard value={runStatus?.current_round || 0} label="Current Round" color="var(--blue)" />
       </div>
 
       {isRunning && (
@@ -160,7 +171,7 @@ export default function SimulationDetail() {
           <div className="card-header"><div className="card-title">Run Status</div></div>
           <div className="flex flex-col gap-2">
             <div className="flex justify-between text-sm">
-              <span className="font-medium">Round {runStatus?.current_round || sim.current_round || 0} of {runStatus?.total_rounds || sim.total_rounds || "?"}</span>
+              <span className="font-medium">Round {runStatus?.current_round || 0} of {runStatus?.total_rounds || "?"}</span>
               <span className="text-zinc-500">{progress}%</span>
             </div>
             <ProgressBar value={progress} color="blue" pulse />

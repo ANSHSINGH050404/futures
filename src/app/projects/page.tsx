@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -138,7 +137,7 @@ export default function Projects() {
               <tbody>
                 {projects.map((p) => (
                   <tr key={p.project_id}>
-                    <td className="font-medium text-zinc-900 dark:text-zinc-100">{p.project_name}</td>
+                    <td className="font-medium text-zinc-900 dark:text-zinc-100">{p.name ?? p.project_name ?? "Unnamed Project"}</td>
                     <td><span className="chip">{p.project_id.slice(0, 8)}</span></td>
                     <td><StatusBadge status={p.status} /></td>
                     <td>{p.files?.length || 0} files</td>
@@ -146,6 +145,12 @@ export default function Projects() {
                       <div className="flex gap-2">
                         {p.status === "ontology_generated" && (
                           <button className="btn btn-secondary btn-sm" onClick={() => handleBuild(p.project_id)}>Build Graph</button>
+                        )}
+                        {p.status === "graph_building" && (
+                          <button className="btn btn-secondary btn-sm" disabled>Building...</button>
+                        )}
+                        {p.status === "graph_completed" && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/projects/${p.project_id}/graph`)}>View Graph</button>
                         )}
                         <button className="btn btn-ghost btn-sm text-red-500" onClick={() => handleDelete(p.project_id)}>Delete</button>
                       </div>

@@ -73,7 +73,7 @@ export default function NewSimulation() {
               <label className="label">Select Project</label>
               <select className="input mt-1" value={projectId} onChange={e => setProjectId(e.target.value)} required>
                 {projects.map(p => (
-                  <option key={p.project_id} value={p.project_id}>{p.project_name}</option>
+                  <option key={p.project_id} value={p.project_id}>{p.name ?? p.project_name ?? "Unnamed Project"}</option>
                 ))}
               </select>
               <p className="text-xs text-muted mt-1">Only projects with completed graphs are shown here.</p>

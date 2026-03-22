@@ -33,6 +33,7 @@ export const api = {
   graph: {
     listProjects: () => get<any>("/graph/project/list"),
     getProject: (id: string) => get<any>(`/graph/project/${id}`),
+    getProjectGraph: (id: string) => get<any>(`/graph/project/${id}/graph`),
     deleteProject: (id: string) => del_<any>(`/graph/project/${id}`),
     resetProject: (id: string) => post<any>(`/graph/project/${id}/reset`),
     generateOntology: (form: FormData) =>
